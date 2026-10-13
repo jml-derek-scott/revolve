@@ -1,0 +1,3 @@
+llvmlite<0.43
+numba<0.60
+numpy<2

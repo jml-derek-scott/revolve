@@ -1,0 +1,29 @@
+# Core Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+python-multipart>=0.0.9
+pydantic>=2.6.0
+
+# PyTorch Deep Learning Stack (MPS / Metal Compatible)
+torch>=2.2.0
+torchvision>=0.17.0
+numpy<2.0.0
+
+# 3D Mesh Processing & Computer Vision
+trimesh>=4.0.0
+scipy>=1.12.0
+pillow>=10.2.0
+
+# TripoSR (single-image). Install with: pip install -c constraints.txt -r requirements.txt
+# torchmcubes must be built against the installed torch:
+#   pip install setuptools wheel scikit-build-core cmake ninja pybind11
+#   pip install --no-build-isolation git+https://github.com/tatsy/torchmcubes.git
+# TripoSR itself is cloned to ../vendor/TripoSR (not a pip package).
+omegaconf==2.3.0
+einops==0.7.0
+transformers==4.35.0
+huggingface-hub
+scikit-image
+imageio
+rembg
+onnxruntime

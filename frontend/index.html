@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+  <style type="text/tailwindcss">
+    @layer components {
+      .seg { @apply flex gap-1.5; }
+      .seg button { @apply flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-100 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-35; }
+      .seg button.active { @apply border-blue-500 bg-blue-600 hover:bg-blue-600; }
+      .section { @apply mt-5 mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500; }
+      .info { @apply text-lg leading-none text-zinc-500 hover:text-zinc-200; }
+      /* long-form reading styles for the MVP info modal */
+      .doc { @apply space-y-4 text-[15px] leading-7 text-zinc-300; }
+      .doc h2 { @apply mt-10 mb-1 border-b border-zinc-800 pb-2 text-xl font-semibold text-zinc-50 first:mt-0; }
+      .doc h3 { @apply mt-6 mb-0 text-base font-semibold text-sky-300; }
+      .doc strong { @apply font-semibold text-zinc-100; }
+      .doc ul { @apply list-disc space-y-1.5 pl-5 marker:text-zinc-600; }
+      .doc ol { @apply list-decimal space-y-1.5 pl-5 marker:text-zinc-500; }
+      .doc code { @apply rounded bg-zinc-800 px-1 py-0.5 text-[13px] text-zinc-200; }
+      .doc .lede { @apply text-base text-zinc-200; }
+      .doc .note { @apply rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-400; }
+      .doc table { @apply w-full border-collapse text-sm; }
+      .doc th { @apply border-b border-zinc-700 py-2 pr-3 text-left font-semibold text-zinc-100; }
+      .doc td { @apply border-b border-zinc-800 py-2 pr-3 align-top; }
+    }
+  </style>
+  <script type="importmap">
+    {"imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }}
+  </script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body class="flex h-screen bg-zinc-950 text-sm text-zinc-100">
+  <aside class="flex w-72 shrink-0 flex-col overflow-y-auto bg-zinc-900 p-4">
+    <h1 class="mb-3 text-lg font-semibold">3D Viewer</h1>
+
+    <h2 class="section">Template</h2>
+    <div class="grid grid-cols-5 gap-1.5" id="templates"></div>
+    <div class="mt-2 flex gap-1.5" id="photos"></div>
+
+    <h2 class="section">Model <button class="info" data-info="model" aria-label="About model"><i class="bx bx-info-circle"></i></button></h2>
+    <div class="seg" id="method">
+      <button data-m="wrap" class="active">Texture wrap</button>
+      <button data-m="build">Full build</button>
+    </div>
+    <div class="seg mt-1.5" id="method-hybrid">
+      <button data-m="hybrid">Hybrid</button>
+    </div>
+    <p class="mt-1.5 text-xs text-zinc-500" id="method-hint"></p>
+
+    <h2 class="section">Renderer <button class="info" data-info="renderer" aria-label="About renderer"><i class="bx bx-info-circle"></i></button></h2>
+    <div class="seg" id="renderer">
+      <button data-r="three" class="active">Three.js</button>
+      <button data-r="mv">model-viewer</button>
+    </div>
+
+    <h2 class="section">Environment <button class="info" data-info="env" aria-label="About environment"><i class="bx bx-info-circle"></i></button></h2>
+    <div class="seg" id="env">
+      <button data-env="beach" class="active">Beach</button>
+      <button data-env="nightclub">Nightclub</button>
+    </div>
+
+    <p class="mt-4 text-xs text-zinc-400" id="status">Idle.</p>
+    <h2 class="section">Stats</h2>
+    <pre class="whitespace-pre-wrap text-[11px] text-green-300" id="stats">–</pre>
+
+    <button id="mvp-open" class="mt-auto flex w-full items-center justify-center gap-1.5 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-sky-500">
+      <i class="bx bx-book-open text-sm"></i> MVP info
+    </button>
+  </aside>
+
+  <main class="relative flex-1">
+    <model-viewer id="mv" class="absolute inset-0 h-full w-full" camera-controls auto-rotate shadow-intensity="1" exposure="1" hidden></model-viewer>
+    <div id="three" class="absolute inset-0 h-full w-full"></div>
+  </main>
+
+  <dialog id="info-modal" class="m-auto w-[min(32rem,calc(100%-2rem))] rounded-xl bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/60">
+    <div class="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <h3 class="text-base font-semibold" id="info-title"></h3>
+      <form method="dialog"><button class="text-2xl leading-none text-zinc-400 hover:text-zinc-100" aria-label="Close"><i class="bx bx-x"></i></button></form>
+    </div>
+    <div class="space-y-3 px-5 py-4 text-sm leading-relaxed text-zinc-300" id="info-body"></div>
+  </dialog>
+  <dialog id="mvp-modal" class="m-auto h-[min(85vh,60rem)] w-[min(52rem,calc(100%-2rem))] overflow-hidden rounded-xl bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/70 open:flex open:flex-col">
+    <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
+      <div>
+        <h3 class="text-lg font-semibold">From MVP to product</h3>
+        <p class="text-xs text-zinc-500">What we tested, what we learned, and what it would take to make this good</p>
+      </div>
+      <form method="dialog"><button class="text-2xl leading-none text-zinc-400 hover:text-zinc-100" aria-label="Close"><i class="bx bx-x"></i></button></form>
+    </div>
+    <article class="doc flex-1 overflow-y-auto px-6 py-6 sm:px-10" id="mvp-body"></article>
+  </dialog>
+  <dialog id="photo-modal" class="m-auto max-h-[95vh] max-w-[95vw] cursor-zoom-out bg-transparent p-0 backdrop:bg-black/80">
+    <img id="photo-full" alt="" class="max-h-[90vh] w-auto rounded-lg bg-white object-contain">
+    <p class="mt-2 text-center text-xs text-zinc-300" id="photo-caption"></p>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,35 @@
+# Python virtual environments
+venv/
+venv-*/
+.venv/
+__pycache__/
+*.pyc
+
+# 3D models (generated meshes, mannequins, demo models)
+*.glb
+*.gltf
+
+# ML model weights
+*.ckpt
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.bin
+
+# Third-party model code, cloned separately (each has its own .git); see README
+vendor/
+
+# Generated output and user uploads
+outputs/
+uploads/
+
+# Secrets
+.env
+.env.*
+*.env
+
+# OS / editor
+.DS_Store
+
+scraper/revolve_images

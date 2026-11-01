@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>3D Viewer</title>
+  <title>TESTBED</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
   <style type="text/tailwindcss">
@@ -11,6 +11,10 @@
       .seg { @apply flex gap-1.5; }
       .seg button { @apply flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-100 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-35; }
       .seg button.active { @apply border-blue-500 bg-blue-600 hover:bg-blue-600; }
+      .pair { @apply flex w-full overflow-hidden rounded-md border border-zinc-700; }
+      .pair button { @apply flex-1 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-100 hover:bg-zinc-700; }
+      .pair button + button { @apply border-l border-zinc-700; }
+      .pair button.active { @apply bg-blue-600 text-white hover:bg-blue-600; }
       .section { @apply mt-5 mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500; }
       .info { @apply text-lg leading-none text-zinc-500 hover:text-zinc-200; }
       /* long-form reading styles for the MVP info modal */
@@ -28,6 +32,11 @@
       .doc td { @apply border-b border-zinc-800 py-2 pr-3 align-top; }
     }
   </style>
+  <style>
+    #templates { scrollbar-width: none; scroll-padding-inline: 4px; }
+    #templates::-webkit-scrollbar { display: none; }
+    #templates > button { flex: 0 0 3.5rem; width: 3.5rem; }
+  </style>
   <script type="importmap">
     {"imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -35,15 +44,21 @@
     }}
   </script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=sim2j"></script>
 </head>
 <body class="flex h-screen bg-zinc-950 text-sm text-zinc-100">
   <aside class="flex w-72 shrink-0 flex-col overflow-y-auto bg-zinc-900 p-4">
-    <h1 class="mb-3 text-lg font-semibold">3D Viewer</h1>
+    <h1 class="mb-3 text-lg font-semibold">TESTBED</h1>
 
     <h2 class="section">Template</h2>
-    <div class="grid grid-cols-5 gap-1.5" id="templates"></div>
+    <div class="flex items-center gap-1">
+      <button type="button" id="templates-prev" class="flex h-8 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800 text-lg leading-none text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-default disabled:opacity-30" aria-label="Previous templates"><i class="bx bx-chevron-left"></i></button>
+      <div id="templates" class="flex min-w-0 flex-1 snap-x snap-mandatory gap-1.5 overflow-x-auto overflow-y-hidden scroll-smooth p-1"></div>
+      <button type="button" id="templates-next" class="flex h-8 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800 text-lg leading-none text-zinc-200 transition hover:bg-zinc-700 disabled:cursor-default disabled:opacity-30" aria-label="Next templates"><i class="bx bx-chevron-right"></i></button>
+    </div>
     <div class="mt-2 flex gap-1.5" id="photos"></div>
+    <div class="mt-1.5 flex items-center gap-1.5" id="ghost-photos" hidden></div>
+    <div class="mt-1.5 flex flex-wrap items-center gap-1.5" id="sim2-photos" hidden></div>
 
     <h2 class="section">Model <button class="info" data-info="model" aria-label="About model"><i class="bx bx-info-circle"></i></button></h2>
     <div class="seg" id="method">
@@ -52,8 +67,16 @@
     </div>
     <div class="seg mt-1.5" id="method-hybrid">
       <button data-m="hybrid">Hybrid</button>
+      <button type="button" data-preview="sim2" hidden aria-label="Cylindrical side-fill preview">Side fill</button>
     </div>
     <p class="mt-1.5 text-xs text-zinc-500" id="method-hint"></p>
+    <div id="body-style-wrap" class="mt-3" hidden>
+      <h2 class="section">Body</h2>
+      <div class="pair" id="body-style">
+        <button type="button" data-body="basic">Basic</button>
+        <button type="button" data-body="model" class="active">Model</button>
+      </div>
+    </div>
 
     <h2 class="section">Renderer <button class="info" data-info="renderer" aria-label="About renderer"><i class="bx bx-info-circle"></i></button></h2>
     <div class="seg" id="renderer">
@@ -81,12 +104,12 @@
     <div id="three" class="absolute inset-0 h-full w-full"></div>
   </main>
 
-  <dialog id="info-modal" class="m-auto w-[min(32rem,calc(100%-2rem))] rounded-xl bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/60">
-    <div class="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+  <dialog id="info-modal" class="m-auto max-h-[88vh] w-[min(60rem,calc(100%-2rem))] overflow-hidden rounded-xl bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/70 open:flex open:flex-col">
+    <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
       <h3 class="text-base font-semibold" id="info-title"></h3>
       <form method="dialog"><button class="text-2xl leading-none text-zinc-400 hover:text-zinc-100" aria-label="Close"><i class="bx bx-x"></i></button></form>
     </div>
-    <div class="space-y-3 px-5 py-4 text-sm leading-relaxed text-zinc-300" id="info-body"></div>
+    <div class="flex-1 space-y-4 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-zinc-300" id="info-body"></div>
   </dialog>
   <dialog id="mvp-modal" class="m-auto h-[min(85vh,60rem)] w-[min(52rem,calc(100%-2rem))] overflow-hidden rounded-xl bg-zinc-900 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/70 open:flex open:flex-col">
     <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">

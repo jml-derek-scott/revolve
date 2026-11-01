@@ -1,0 +1,5 @@
+# Shared defaults. Garment JSON overrides these per piece.
+background_rgb: [255, 255, 255]
+clearance_mm: 4
+sheer_fill_rgb: [24, 24, 24]
+dress_unwrap: cylindrical

@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en" class="h-full bg-black">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shop3d</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+    />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #262626;
+        border-radius: 0px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #525252;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      @keyframes spinSlow {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .animate-spin-slow {
+        animation: spinSlow 12s linear infinite;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 9px;
+        line-height: 1;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 5px 7px;
+        border: 1px solid #404040;
+        background: #171717;
+        color: #d4d4d4;
+      }
+      .chip-current {
+        background: #10b981;
+        border-color: #34d399;
+        color: #052e16;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body
+    class="h-full w-full bg-black text-white font-sans antialiased select-none overflow-hidden flex flex-col lg:flex-row"
+  >
+    <div
+      id="sidebar-backdrop"
+      onclick="toggleSidebar(false)"
+      class="fixed inset-0 z-30 bg-black/80 backdrop-blur-sm hidden lg:hidden transition-opacity duration-300"
+    ></div>
+
+    <aside
+      id="sidebar"
+      class="fixed inset-y-0 left-0 z-40 w-72 lg:static lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-out bg-neutral-950 border-r border-neutral-800 flex flex-col shrink-0 h-full overflow-y-auto rounded-none"
+    >
+      <div class="p-5 flex flex-col flex-1 min-h-full">
+        <div
+          class="flex items-center justify-between pb-5 border-b border-neutral-800"
+        >
+          <div class="flex items-center gap-2.5 text-white">
+            <i class="bx bx-cube-alt text-2xl leading-none"></i>
+            <span
+              class="text-2xl font-bold tracking-widest uppercase font-mono leading-none"
+              >Shop3d</span
+            >
+          </div>
+          <button
+            onclick="toggleSidebar(false)"
+            class="lg:hidden flex items-center gap-1 text-neutral-400 hover:text-white text-xs uppercase font-mono tracking-wider transition-colors cursor-pointer border border-neutral-800 px-2 py-1 rounded-none"
+          >
+            <i class="bx bx-x text-lg leading-none"></i>
+            <span>CLOSE</span>
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <span
+              class="text-[11px] font-mono uppercase tracking-widest text-neutral-400"
+              >GARMENT SELECTION</span
+            >
+            <div class="flex items-center gap-1">
+              <button
+                onclick="scrollCarousel(-1)"
+                class="w-6 h-6 flex items-center justify-center bg-neutral-900 border border-neutral-800 hover:border-white text-neutral-400 hover:text-white transition-colors cursor-pointer rounded-none"
+                title="Previous"
+              >
+                <i class="bx bx-chevron-left text-lg leading-none"></i>
+              </button>
+              <button
+                onclick="scrollCarousel(1)"
+                class="w-6 h-6 flex items-center justify-center bg-neutral-900 border border-neutral-800 hover:border-white text-neutral-400 hover:text-white transition-colors cursor-pointer rounded-none"
+                title="Next"
+              >
+                <i class="bx bx-chevron-right text-lg leading-none"></i>
+              </button>
+            </div>
+          </div>
+          <div
+            id="carousel-track"
+            class="flex items-center gap-2 bg-neutral-900/60 p-2 border border-neutral-800 justify-start overflow-x-auto no-scrollbar"
+          ></div>
+        </div>
+
+        <div class="mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <span
+              class="text-[11px] font-mono uppercase tracking-widest text-neutral-400"
+              >CATALOG FRONT &amp; BACK</span>
+            >
+          </div>
+          <div class="grid grid-cols-2 gap-3 justify-items-center">
+            <button
+              onclick="openImageModal(0)"
+              class="group relative w-[128px] h-[128px] border border-neutral-800 hover:border-white transition-all cursor-pointer overflow-hidden rounded-none bg-neutral-900"
+            >
+              <img
+                id="macro-thumb-0"
+                src=""
+                alt=""
+                class="w-full h-full object-contain bg-neutral-200 group-hover:scale-105 transition-transform duration-500"
+              />
+              <div
+                class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white gap-2"
+              >
+                <i class="bx bx-zoom-in text-3xl leading-none"></i>
+                <span
+                  class="text-[10px] font-mono uppercase tracking-widest font-semibold"
+                  >CATALOG FRONT</span
+                >
+              </div>
+            </button>
+            <button
+              onclick="openImageModal(1)"
+              class="group relative w-[128px] h-[128px] border border-neutral-800 hover:border-white transition-all cursor-pointer overflow-hidden rounded-none bg-neutral-900"
+            >
+              <img
+                id="macro-thumb-1"
+                src=""
+                alt=""
+                class="w-full h-full object-contain bg-neutral-200 group-hover:scale-105 transition-transform duration-500"
+              />
+              <div
+                class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white gap-2"
+              >
+                <i class="bx bx-zoom-in text-3xl leading-none"></i>
+                <span
+                  class="text-[10px] font-mono uppercase tracking-widest font-semibold"
+                  >CATALOG BACK</span
+                >
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <span
+            class="text-[11px] font-mono uppercase tracking-widest text-neutral-400 block mb-2"
+            >ABOUT THIS PIECE</span
+          >
+          <div
+            class="p-3 bg-neutral-900/40 border border-neutral-800/80 text-[11px] font-mono text-neutral-400 leading-relaxed rounded-none"
+          >
+            <div id="model-chips" class="flex flex-wrap gap-1 mb-2.5"></div>
+            <p id="model-description-text">Loading…</p>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <span
+            class="text-[11px] font-mono uppercase tracking-widest text-neutral-400 block mb-2"
+            >ATMOSPHERE LIGHTING</span
+          >
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              id="btn-env-beach"
+              onclick="setEnvironment('beach')"
+              class="env-btn active flex items-center justify-center gap-1.5 py-2.5 px-3 bg-white text-black font-mono text-xs tracking-wider uppercase font-semibold border border-white transition-all cursor-pointer rounded-none"
+            >
+              <i class="bx bx-sun text-base leading-none"></i>
+              <span>BEACH</span>
+            </button>
+            <button
+              id="btn-env-nightclub"
+              onclick="setEnvironment('nightclub')"
+              class="env-btn flex items-center justify-center gap-1.5 py-2.5 px-3 bg-neutral-900 text-neutral-400 hover:text-white font-mono text-xs tracking-wider uppercase font-semibold border border-neutral-800 hover:border-neutral-600 transition-all cursor-pointer rounded-none"
+            >
+              <i class="bx bx-party text-base leading-none"></i>
+              <span>NIGHTCLUB</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-auto pt-6">
+          <div
+            class="mb-3 p-2.5 bg-black border border-neutral-800 font-mono text-[10px] text-neutral-400 leading-tight"
+          >
+            <div
+              class="flex items-center justify-between border-b border-neutral-800/80 pb-1 mb-1"
+            >
+              <span class="text-neutral-500 uppercase">SYSTEM_METRICS</span>
+              <span
+                class="inline-block w-1.5 h-1.5 bg-emerald-500 animate-pulse"
+              ></span>
+            </div>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              <div>FPS: <span id="stat-fps" class="text-white">–</span></div>
+              <div>HEAP: <span id="stat-heap" class="text-white">–</span></div>
+              <div>
+                VERTS: <span id="stat-verts" class="text-white">–</span>
+              </div>
+              <div>
+                POLYS: <span id="stat-polys" class="text-white">–</span>
+              </div>
+              <div id="stat-note" class="col-span-2 text-neutral-500"></div>
+            </div>
+          </div>
+          <button
+            onclick="openSpecsModal()"
+            class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-neutral-900 hover:bg-white hover:text-black text-neutral-200 border border-neutral-700 font-mono text-xs tracking-widest uppercase font-semibold transition-all cursor-pointer rounded-none"
+          >
+            <i class="bx bx-layer text-lg leading-none"></i>
+            <span>VIEW SPECIFICATIONS</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="relative flex-1 h-full bg-black overflow-hidden flex flex-col">
+      <header
+        class="absolute top-0 inset-x-0 z-20 p-4 sm:p-6 flex items-center justify-between pointer-events-none"
+      >
+        <button
+          onclick="toggleSidebar(true)"
+          class="pointer-events-auto lg:hidden flex items-center gap-2 bg-black/80 backdrop-blur-md border border-neutral-700 text-white px-3 py-2 text-xs font-mono tracking-widest uppercase cursor-pointer hover:bg-white hover:text-black transition-all rounded-none"
+        >
+          <i class="bx bx-menu text-lg leading-none"></i>
+          <span>MENU</span>
+        </button>
+        <div
+          class="pointer-events-auto hidden sm:flex items-center gap-3 bg-black/80 backdrop-blur-md border border-neutral-800 px-4 py-2 font-mono"
+        >
+          <span class="w-2 h-2 bg-white inline-block"></span>
+          <span
+            id="active-garment-title"
+            class="text-xs uppercase tracking-widest text-white font-bold"
+            >LOADING</span
+          >
+        </div>
+        <button
+          onclick="openControlsModal()"
+          class="pointer-events-auto flex items-center gap-2 bg-black/80 backdrop-blur-md border border-neutral-700 text-white px-3.5 py-2 text-xs font-mono tracking-widest uppercase cursor-pointer hover:bg-white hover:text-black transition-all rounded-none"
+        >
+          <i class="bx bx-slider-alt text-base leading-none"></i>
+          <span>CONTROLS</span>
+        </button>
+      </header>
+
+      <div id="canvas-container" class="w-full h-full"></div>
+
+      <div
+        class="absolute bottom-4 right-4 z-20 flex items-center gap-2 pointer-events-auto"
+      >
+        <button
+          onclick="resetCamera()"
+          class="flex items-center gap-1.5 bg-black/80 backdrop-blur-md border border-neutral-800 hover:border-white text-neutral-300 hover:text-white px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer rounded-none"
+        >
+          <i class="bx bx-reset text-sm leading-none"></i>
+          <span>RESET VIEW</span>
+        </button>
+        <button
+          id="btn-toggle-rotate"
+          onclick="toggleAutoRotate()"
+          class="flex items-center gap-1.5 bg-black/80 backdrop-blur-md border border-neutral-800 hover:border-white text-neutral-300 hover:text-white px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer rounded-none"
+        >
+          <i
+            id="rotate-icon"
+            class="bx bx-sync text-sm leading-none animate-spin-slow"
+          ></i>
+          <span id="rotate-status-label">ROTATE: ON</span>
+        </button>
+      </div>
+    </main>
+
+    <div
+      id="modal-macro"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden"
+    >
+      <div
+        class="relative w-full max-w-3xl bg-neutral-950/90 border border-neutral-800 p-6 shadow-2xl flex flex-col md:flex-row gap-6 rounded-none"
+      >
+        <button
+          onclick="closeModal('modal-macro')"
+          class="absolute top-4 right-4 text-neutral-400 hover:text-white text-2xl transition-colors cursor-pointer"
+          title="Close"
+        >
+          <i class="bx bx-x"></i>
+        </button>
+        <div
+          class="w-full md:w-1/2 h-80 bg-white border border-neutral-800 overflow-hidden shrink-0"
+        >
+          <img
+            id="modal-img-src"
+            src=""
+            alt=""
+            class="w-full h-full object-contain"
+          />
+        </div>
+        <div class="flex-1 flex flex-col justify-center pr-6">
+          <span
+            id="modal-img-side"
+            class="text-[10px] font-mono uppercase tracking-widest text-neutral-500"
+            >FRONT</span
+          >
+          <h3
+            id="modal-img-title"
+            class="text-xl font-bold font-mono uppercase tracking-wider text-white mt-2 mb-3"
+          ></h3>
+          <p
+            id="modal-img-desc"
+            class="text-xs font-mono text-neutral-300 leading-relaxed"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="modal-specs"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden"
+    >
+      <div
+        class="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-neutral-950/95 border border-neutral-800 p-6 md:p-8 shadow-2xl rounded-none"
+      >
+        <button
+          onclick="closeModal('modal-specs')"
+          class="absolute top-4 right-4 z-10 text-neutral-400 hover:text-white text-2xl transition-colors cursor-pointer"
+          title="Close"
+        >
+          <i class="bx bx-x"></i>
+        </button>
+        <span
+          class="text-xs font-mono uppercase tracking-widest text-neutral-400"
+          >ON DISPLAY</span
+        >
+        <h2
+          id="spec-name"
+          class="text-2xl font-bold font-mono uppercase tracking-wider text-white mt-2 mb-3 pr-8"
+        ></h2>
+        <div id="spec-chips" class="flex flex-wrap gap-1.5 mb-4 pb-3 border-b border-neutral-800"></div>
+        <p
+          id="spec-details"
+          class="font-mono text-xs text-neutral-300 leading-relaxed"
+        ></p>
+        <div id="spec-long" class="mt-5 space-y-4"></div>
+        <div class="mt-6">
+          <span class="text-[11px] font-mono uppercase tracking-widest text-neutral-400 block mb-2">Ideal images used</span>
+          <div id="spec-ideals" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+        </div>
+        <div id="spec-shell-wrap" class="mt-6 hidden">
+          <span class="text-[11px] font-mono uppercase tracking-widest text-neutral-400 block mb-2">Hunyuan shell</span>
+          <button
+            type="button"
+            id="spec-shell-btn"
+            onclick="loadShell()"
+            class="group flex w-full items-stretch gap-3 border border-neutral-700 bg-neutral-900 p-2 text-left hover:border-white transition-colors cursor-pointer rounded-none"
+          >
+            <img id="spec-shell-thumb" src="" alt="" class="h-24 w-24 shrink-0 object-contain bg-black border border-neutral-800" />
+            <span class="flex min-w-0 flex-col justify-center py-1">
+              <span id="spec-shell-label" class="font-mono text-xs uppercase tracking-widest text-white"></span>
+              <span class="mt-1 font-mono text-[11px] text-neutral-400 leading-relaxed">Click to close this panel and load the unfitted hull in the viewer. Click a garment thumbnail to return to the dressed model.</span>
+            </span>
+          </button>
+        </div>
+        <p class="mt-6 font-mono text-[11px] text-neutral-500">
+          FILE <span id="spec-file" class="text-neutral-300"></span>
+        </p>
+        <div class="mt-8 pt-4 border-t border-neutral-800 flex justify-end">
+          <button
+            onclick="closeModal('modal-specs')"
+            class="flex items-center gap-2 bg-white text-black hover:bg-neutral-200 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest transition-all cursor-pointer rounded-none"
+          >
+            <span>CLOSE</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="modal-controls"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden"
+    >
+      <div
+        class="relative w-full max-w-md bg-neutral-950/90 border border-neutral-800 p-6 shadow-2xl rounded-none"
+      >
+        <button
+          onclick="closeModal('modal-controls')"
+          class="absolute top-4 right-4 text-neutral-400 hover:text-white text-2xl transition-colors cursor-pointer"
+          title="Close"
+        >
+          <i class="bx bx-x"></i>
+        </button>
+        <span
+          class="text-xs font-mono uppercase tracking-widest text-neutral-400"
+          >NAVIGATION GUIDE</span
+        >
+        <h3
+          class="text-xl font-bold font-mono uppercase tracking-wider text-white mb-6 pb-3 border-b border-neutral-800"
+        >
+          3D VIEWPORT CONTROLS
+        </h3>
+        <div class="space-y-3 font-mono text-xs">
+          <div
+            class="flex items-center justify-between p-3 bg-neutral-900 border border-neutral-800"
+          >
+            <span class="text-white">ROTATE MODEL</span>
+            <span class="text-neutral-400">LEFT DRAG</span>
+          </div>
+          <div
+            class="flex items-center justify-between p-3 bg-neutral-900 border border-neutral-800"
+          >
+            <span class="text-white">PAN CAMERA</span>
+            <span class="text-neutral-400">RIGHT DRAG</span>
+          </div>
+          <div
+            class="flex items-center justify-between p-3 bg-neutral-900 border border-neutral-800"
+          >
+            <span class="text-white">ZOOM</span>
+            <span class="text-neutral-400">SCROLL / PINCH</span>
+          </div>
+        </div>
+        <div class="mt-6 pt-4 border-t border-neutral-800 flex justify-end">
+          <button
+            onclick="closeModal('modal-controls')"
+            class="bg-white text-black hover:bg-neutral-200 px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-widest transition-all cursor-pointer rounded-none"
+          >
+            CLOSE
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="js/shop.js?v=shop6"></script>
+  </body>
+</html>

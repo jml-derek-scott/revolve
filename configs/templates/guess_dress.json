@@ -1,0 +1,25 @@
+{
+  "outfit_id": "guess_dress",
+  "gender": "female",
+  "target_mannequin": "mannequins/female_base_mesh.glb",
+  "garments": [
+    {
+      "class_id": "dress",
+      "category": "dress",
+      "layer_order": 1,
+      "material_type": "opaque",
+      "prepass_mode": "ghost_v2",
+      "sdf_clearance_mm": 4.0,
+      "lift_m": 0.12,
+      "unwrap_mode": "cylindrical",
+      "background_max": 100,
+      "prompts": {
+        "front": "Remove the woman completely and leave only the dress, hanging straight on a plain white background. Delete her skin, hair, face, arms, hands, legs, and shoes. The dress is empty: no body and no mannequin inside. It hangs vertical and symmetric, as a studio product shot, not leaning with her hip. Keep two thin black spaghetti straps, a straight black satin bandeau across the bust, and a black sequin mini skirt to the upper thigh. Do not lengthen the hem. Keep the sequins as sequins; do not turn them into smooth satin or a printed fake. Fill the hip where her hand was with the same sequin fabric. Front view, centered, full garment in frame.",
+        "back": "Remove the woman completely and leave only the back of the dress, hanging straight on a plain white background. Delete her skin, hair, arms, legs, and shoes. The dress is empty: no body and no mannequin inside. It hangs vertical and symmetric, not posed. Keep the large black satin bow at the upper back, with tails hanging down the sequin skirt. Do not flatten the bow into a print. Keep two thin black spaghetti straps over the shoulders that meet at the bow knot. The upper back above the bow stays open: white background, not a closed bodice. Keep the black sequin mini to the upper thigh. Do not lengthen the hem. Keep the sequins as sequins, not smooth satin. Back view, centered, full garment in frame.",
+        "left": "Turn this same black sequin mini dress to a true orthographic left side profile, camera exactly 90 degrees, on a plain white background. Show only the side seam: the front of the dress is the left edge of the silhouette and the back is the right edge. Do not show a three-quarter view and do not show the front of the bandeau. One thin black spaghetti strap is visible over the shoulder. Keep the straight black satin bandeau as a narrow band at the top of the side, and the black sequin skirt to the upper thigh. Do not lengthen the hem. The side of the skirt is black sequin, not smooth satin. Do not add a bow. No person and no body inside. Full garment, centered, nothing cropped.",
+        "right": "Turn this same black sequin mini dress to a true orthographic right side profile, camera exactly 90 degrees, on a plain white background. Show only the side seam: the front of the dress is the right edge of the silhouette and the back is the left edge. Do not show a three-quarter view and do not show the front of the bandeau. One thin black spaghetti strap is visible over the shoulder. Keep the straight black satin bandeau as a narrow band at the top of the side, and the black sequin skirt to the upper thigh. Do not lengthen the hem. The side of the skirt is black sequin, not smooth satin. Do not add a bow. No person and no body inside. Full garment, centered, nothing cropped."
+      },
+      "empty_prompt": "Edit this into a photo of only the black sequin mini dress, floating on a plain white background. Keep the dress the same: spaghetti straps, satin bandeau, sequin skirt, hem at the upper thigh, and the satin bow on the back if this is the back view. The dress is hollow. Do not add a mannequin, a head, arms, or legs."
+    }
+  ]
+}

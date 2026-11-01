@@ -21,6 +21,8 @@ export class ThreeViewer {
     this.camera.position.set(0, 0, 2.2);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
+    this.controls.autoRotateSpeed = 1.5;
+    this.lastStats = { fps: 0, triangles: 0, textures: 0, heap: null, vertices: 0, polygons: 0 };
 
     this.lights = new THREE.Group(); // per-environment extra lights
     this.scene.add(this.lights);
@@ -75,12 +77,40 @@ export class ThreeViewer {
   async load(url) {
     this.loading = url;
     const gltf = await new GLTFLoader().loadAsync(url);
-    if (this.loading !== url) return; // a newer load() superseded this one
+    if (this.loading !== url) return false; // a newer load() superseded this one
     if (this.model) this.scene.remove(this.model);
     this.model = gltf.scene;
     this.model.traverse((o) => { if (o.material) o.material.side = THREE.DoubleSide; });
     this.scene.add(this.model);
     this.frame();
+    return true;
+  }
+
+  clear() {
+    this.loading = null;
+    if (this.model) this.scene.remove(this.model);
+    this.model = null;
+  }
+
+  setAutoRotate(on) {
+    this.controls.autoRotate = !!on;
+  }
+
+  resetView() {
+    if (this.model) this.frame();
+  }
+
+  meshCounts() {
+    let vertices = 0;
+    let polygons = 0;
+    this.model?.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry) return;
+      const geo = obj.geometry;
+      const position = geo.attributes.position;
+      if (position) vertices += position.count;
+      polygons += geo.index ? geo.index.count / 3 : (position ? position.count / 3 : 0);
+    });
+    return { vertices, polygons: Math.round(polygons) };
   }
 
   // Point the camera at the model's bounding box so any size/origin fits the view.
@@ -104,7 +134,17 @@ export class ThreeViewer {
     this.frames++;
     if (now - this.last >= 1000) {
       const i = this.renderer.info;
-      const heap = performance.memory ? ` | heap ${(performance.memory.usedJSHeapSize / 2 ** 20).toFixed(0)} MB` : "";
+      const heapBytes = performance.memory ? performance.memory.usedJSHeapSize : null;
+      const heap = heapBytes != null ? ` | heap ${(heapBytes / 2 ** 20).toFixed(0)} MB` : "";
+      const mesh = this.meshCounts();
+      this.lastStats = {
+        fps: this.frames,
+        triangles: i.render.triangles,
+        textures: i.memory.textures,
+        heap: heapBytes,
+        vertices: mesh.vertices,
+        polygons: mesh.polygons,
+      };
       this.onStats(`Three.js: ${this.frames} FPS | ${i.render.triangles} tris | ${i.memory.textures} tex${heap}`);
       this.frames = 0;
       this.last = now;

@@ -1,36 +1,112 @@
-"""Prototype: project front/back product photos onto a premade mannequin as a texture.
+"""Project front/back product photos onto a mesh as a texture.
 
-    venv/bin/python scripts/test_mannequin.py <front> <back> [--mannequin mannequins/female_base_mesh.glb]
+Classic mannequin wrap (no reconstruction):
 
-No diffusion / reconstruction. Steps:
-1. rembg person cut-out (for alignment) + u2net_cloth_seg (garment-only mask).
-2. Align each photo to the mannequin by person height and horizontal centre (orthographic).
-3. Bake a texture in the mannequin's own UVs: front photo for front-facing surfaces, mirrored back
-   photo for back-facing ones, blended by normal, with a depth test against self-occlusion.
-   Texels without garment coverage keep the plain mannequin colour.
-Mannequin is expected y-up, facing +z, feet at y=0 (glTF convention).
+    poetry run python scripts/test_mannequin.py <front> <back> [--out path.glb]
+
+Better dress extract (SegFormer clothes + LaMa bag/hair fill):
+
+    poetry run python scripts/test_mannequin.py <front> <back> \\
+        --cloth segformer --inpaint-occlusion \\
+        --out frontend/assets/models/1-wrap.glb
+
+Wrap onto a reconstructed full-build (Hunyuan / TRELLIS) so the garment keeps
+real drape while prints stay photo-sharp:
+
+    poetry run python scripts/test_mannequin.py <front> <back> \\
+        --mesh outputs/hybrid_src/2-hunyuan.glb \\
+        --out frontend/assets/models/2-wrap.glb
+
+Only the garment is painted. Unpainted skin/hair stay mannequin-white.
+Mesh is expected y-up, facing +z.
 """
+from __future__ import annotations
+
 import argparse
+import sys
 import time
 from pathlib import Path
 
 import cv2
 import numpy as np
-import rembg
-import trimesh
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-MANNEQUIN_RGB = np.array([232, 229, 224], np.float32)  # off-white
-TEX = 2048
-DEPTH_CELL = 0.004  # metres per depth-buffer cell
-DEPTH_EPS = 0.015  # metres
+sys.path.insert(0, str(ROOT))
 
-p = argparse.ArgumentParser()
+from pipeline.env import load_env  # noqa: E402
+
+load_env()
+
+from pipeline.canonical import DRESS_LIFT_M, TORSO_SIDE_X, load_placed_views  # noqa: E402
+from pipeline.export_glb import export_mesh  # noqa: E402
+from pipeline.garment_extractor import align_to_mannequin, load_mesh  # noqa: E402
+from pipeline.preprocess import load_view, prepare_ghost_mannequin  # noqa: E402
+from pipeline.texture_bake import MANNEQUIN_RGB, bake_photos  # noqa: E402
+from pipeline.upscale import upscale_image  # noqa: E402
+
+p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 p.add_argument("front")
 p.add_argument("back")
+p.add_argument("--left", help="Optional 90-deg left profile view for 4-view projection")
+p.add_argument("--right", help="Optional 270-deg right profile view for 4-view projection")
 p.add_argument("--mannequin", default=str(ROOT / "mannequins" / "female_base_mesh.glb"))
+p.add_argument("--mesh", help="Mesh to wrap (Hunyuan/TRELLIS GLB). Default: the mannequin.")
 p.add_argument("--out")
+p.add_argument(
+    "--no-align",
+    action="store_true",
+    help="Leave --mesh in its own frame instead of matching the mannequin bbox",
+)
+p.add_argument(
+    "--cloth",
+    default="u2net",
+    choices=("u2net", "segformer"),
+    help="Garment mask. segformer = Hugging Face clothes parser (dress vs bag vs hair).",
+)
+p.add_argument(
+    "--inpaint-occlusion",
+    action="store_true",
+    help="Fill bag/hair holes on the dress (LaMa, TELEA fallback) before projecting.",
+)
+p.add_argument(
+    "--ghost",
+    "--ghost-prepass",
+    dest="ghost_prepass",
+    action="store_true",
+    help="Run 2D Ghost Mannequin garment isolation + LaMa inpainting before wrapping.",
+)
+p.add_argument(
+    "--silhouette-warp",
+    action="store_true",
+    help="Row-wise horizontal X-alignment: maps 3D torso width to 2D garment mask width so flanks never miss.",
+)
+p.add_argument(
+    "--unwrap-mode",
+    default=None,
+    choices=("auto", "planar", "cylindrical"),
+    help="UV unwrap mode. Default: 'planar' when --mesh is set (unless --keep-mesh-texture), else 'auto'.",
+)
+p.add_argument(
+    "--keep-mesh-texture",
+    action="store_true",
+    help="Keep existing mesh texture (e.g. Hunyuan3D-Paint) on unpainted grazing sides instead of mannequin white.",
+)
+p.add_argument(
+    "--upscale",
+    type=int,
+    default=1,
+    help="Real-ESRGAN scale for front/back (and left/right) photos before masking. 1 = off.",
+)
+p.add_argument(
+    "--product-shot",
+    action="store_true",
+    help="Front/back (and optional sides) are garment-only images on white. Place them with --placement.",
+)
+p.add_argument(
+    "--placement",
+    help="placement.json from the dress canonical pass (person box and bust-to-hem).",
+)
 args = p.parse_args()
 
 
@@ -38,124 +114,105 @@ def timed(label, t0):
     print(f"{label}: {time.perf_counter() - t0:.1f}s", flush=True)
 
 
-# ---- 1. masks ----
 t0 = time.perf_counter()
-person_session = rembg.new_session()
-cloth_session = rembg.new_session("u2net_cloth_seg")
+front_path = Path(args.front)
+back_path = Path(args.back)
+left_path = Path(args.left) if args.left else None
+right_path = Path(args.right) if args.right else None
+if args.upscale and args.upscale > 1:
+    front_path = upscale_image(front_path, scale=args.upscale)
+    back_path = upscale_image(back_path, scale=args.upscale)
+    if left_path is not None:
+        left_path = upscale_image(left_path, scale=args.upscale)
+    if right_path is not None:
+        right_path = upscale_image(right_path, scale=args.upscale)
+    timed("upscale", t0)
+    t0 = time.perf_counter()
 
+if args.product_shot:
+    if not args.placement:
+        p.error("--product-shot requires --placement")
+    import json
 
-def load_view(path):
-    img = Image.open(path).convert("RGB")
-    person = np.asarray(rembg.remove(img, session=person_session, only_mask=True)) > 127
-    # cloth_seg predicts upper / lower / full-body masks; the garment is their union.
-    masks = cloth_session.predict(img)
-    garment = np.any([np.asarray(m.resize(img.size)) > 127 for m in masks], axis=0) & person
-    ys, xs = np.nonzero(person)
-    cx = np.median(xs[(ys > np.percentile(ys, 25)) & (ys < np.percentile(ys, 50))])  # torso centre
-    return {"rgb": np.asarray(img, np.float32), "garment": garment, "top": ys.min(), "bottom": ys.max(), "cx": cx}
-
-
-views = {"front": load_view(args.front), "back": load_view(args.back)}
-for k, v in views.items():
-    Image.fromarray((v["garment"] * 255).astype(np.uint8)).save(ROOT / "outputs" / f"mannequin_{k}_garment_mask.png")
+    placement = json.loads(Path(args.placement).read_text())
+    sides = ["front", "back"]
+    if left_path is not None:
+        sides.append("left")
+    if right_path is not None:
+        sides.append("right")
+    shot_dir = front_path.parent
+    views = load_placed_views(shot_dir, placement, sides=tuple(sides), lift_m=DRESS_LIFT_M)
+    print(f"product shots from {shot_dir} ({', '.join(sides)})", flush=True)
+elif args.ghost_prepass:
+    ghost_cloth = "segformer" if args.cloth == "u2net" else args.cloth
+    views = {
+        "front": prepare_ghost_mannequin(front_path, view="front", cloth=ghost_cloth, use_lama=True),
+        "back": prepare_ghost_mannequin(back_path, view="back", cloth=ghost_cloth, use_lama=True),
+    }
+    if left_path is not None:
+        views["left"] = prepare_ghost_mannequin(left_path, view="left", cloth=ghost_cloth, use_lama=True)
+    if right_path is not None:
+        views["right"] = prepare_ghost_mannequin(right_path, view="right", cloth=ghost_cloth, use_lama=True)
+else:
+    views = {
+        "front": load_view(front_path, inpaint_occlusion=args.inpaint_occlusion, cloth=args.cloth),
+        "back": load_view(back_path, inpaint_occlusion=args.inpaint_occlusion, cloth=args.cloth),
+    }
+    if left_path is not None:
+        views["left"] = load_view(left_path, inpaint_occlusion=args.inpaint_occlusion, cloth=args.cloth)
+    if right_path is not None:
+        views["right"] = load_view(right_path, inpaint_occlusion=args.inpaint_occlusion, cloth=args.cloth)
+    if args.cloth == "u2net":
+        # Close holes in sheer / lace so the wrap doesn't paint skin through the dress.
+        close_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
+        for v in views.values():
+            v["garment"] = cv2.morphologyEx(v["garment"].astype(np.uint8), cv2.MORPH_CLOSE, close_k).astype(bool)
 timed("masks", t0)
 
-# ---- 2. mannequin geometry in texel space ----
+mannequin = load_mesh(args.mannequin)
+if args.mesh:
+    mesh = load_mesh(args.mesh)
+    if not args.no_align:
+        mesh = align_to_mannequin(mesh, mannequin, mesh.bounds)
+        print(f"aligned mesh to mannequin; bounds {mesh.bounds}", flush=True)
+    else:
+        print(f"mesh bounds {mesh.bounds}", flush=True)
+else:
+    mesh = mannequin
+
+if args.unwrap_mode is not None:
+    unwrap_mode = args.unwrap_mode
+elif args.mesh and not args.keep_mesh_texture:
+    unwrap_mode = "planar"
+else:
+    unwrap_mode = "auto"
+
 t0 = time.perf_counter()
-scene = trimesh.load(args.mannequin)
-mesh = scene.to_geometry() if hasattr(scene, "to_geometry") else scene.dump(concatenate=True)
-uv = mesh.visual.uv
-height = mesh.bounds[1][1] - mesh.bounds[0][1]
-foot_y = mesh.bounds[0][1]
+mesh = bake_photos(
+    mesh,
+    views,
+    mask_key="garment",
+    inpaint_unpainted=False,
+    fallback_rgb=MANNEQUIN_RGB,
+    unwrap_mode=unwrap_mode,
+    align_to=mannequin if args.mesh and not args.no_align else None,
+    warp_x_to_silhouette=args.silhouette_warp,
+    keep_mesh_texture=args.keep_mesh_texture,
+    side_max_x=TORSO_SIDE_X if args.product_shot and ("left" in views or "right" in views) else None,
+)
+timed("photo UV bake", t0)
 
-pos = np.full((TEX, TEX, 3), np.nan, np.float32)
-nrm = np.zeros((TEX, TEX, 3), np.float32)
-tuv = np.stack([uv[:, 0] * TEX - 0.5, (1 - uv[:, 1]) * TEX - 0.5], -1)  # texel coords, row 0 = v 1
-vn = mesh.vertex_normals
-for f in mesh.faces:
-    a, b, c = tuv[f]
-    lo = np.floor(np.minimum(np.minimum(a, b), c)).astype(int).clip(0, TEX - 1)
-    hi = np.ceil(np.maximum(np.maximum(a, b), c)).astype(int).clip(0, TEX - 1)
-    gx, gy = np.meshgrid(np.arange(lo[0], hi[0] + 1), np.arange(lo[1], hi[1] + 1))
-    q = np.stack([gx.ravel(), gy.ravel()], -1).astype(np.float32)
-    v0, v1, v2 = b - a, c - a, q - a
-    den = v0[0] * v1[1] - v1[0] * v0[1]
-    if abs(den) < 1e-12:
-        continue
-    w1 = (v2[:, 0] * v1[1] - v1[0] * v2[:, 1]) / den
-    w2 = (v0[0] * v2[:, 1] - v2[:, 0] * v0[1]) / den
-    w0 = 1 - w1 - w2
-    inside = (w0 >= -0.01) & (w1 >= -0.01) & (w2 >= -0.01)
-    if not inside.any():
-        continue
-    w = np.stack([w0, w1, w2], -1)[inside]
-    tx, ty = q[inside, 0].astype(int), q[inside, 1].astype(int)
-    pos[ty, tx] = w @ mesh.vertices[f]
-    nrm[ty, tx] = w @ vn[f]
-covered = ~np.isnan(pos[..., 0])
-nrm[covered] /= np.linalg.norm(nrm[covered], axis=1, keepdims=True) + 1e-9
-timed(f"uv raster ({covered.mean() * 100:.0f}% of texture used)", t0)
-
-# ---- 3. depth buffers (front = max z, back = min z) for self-occlusion ----
-pts, _ = trimesh.sample.sample_surface(mesh, 2_000_000)
-x0, y0 = mesh.bounds[0][0], mesh.bounds[0][1]
-gw = int((mesh.bounds[1][0] - x0) / DEPTH_CELL) + 1
-gh = int((mesh.bounds[1][1] - y0) / DEPTH_CELL) + 1
-
-
-def cell(xy):
-    return (((xy[:, 1] - y0) / DEPTH_CELL).astype(int).clip(0, gh - 1),
-            ((xy[:, 0] - x0) / DEPTH_CELL).astype(int).clip(0, gw - 1))
-
-
-zmax = np.full((gh, gw), -np.inf)
-zmin = np.full((gh, gw), np.inf)
-r, c = cell(pts)
-np.maximum.at(zmax, (r, c), pts[:, 2])
-np.minimum.at(zmin, (r, c), pts[:, 2])
-
-# ---- 4. project ----
-t0 = time.perf_counter()
-P, N = pos[covered], nrm[covered]
-r, c = cell(P)
-color = np.zeros((len(P), 3), np.float32)
-weight = np.zeros(len(P), np.float32)
-for side, sign, zbuf in (("front", 1, zmax), ("back", -1, zmin)):
-    v = views[side]
-    s = (v["bottom"] - v["top"]) / height  # px per metre, person height -> mannequin height
-    px = (v["cx"] + sign * P[:, 0] * s).round().astype(int)  # back photo is mirrored in x
-    py = (v["bottom"] - (P[:, 1] - foot_y) * s).round().astype(int)
-    H, W = v["garment"].shape
-    ok = (px >= 0) & (px < W) & (py >= 0) & (py < H)
-    visible = sign * (P[:, 2] - zbuf[r, c]) > -DEPTH_EPS
-    facing = np.clip(sign * N[:, 2], 0, 1)
-    m = ok & visible & (facing > 0.05)
-    m[m] &= v["garment"][py[m], px[m]]
-    w = np.where(m, facing**2, 0)
-    color[m] += w[m, None] * v["rgb"][py[m], px[m]]
-    weight += w
-painted = weight > 0
-color[painted] /= weight[painted, None]
-color[~painted] = MANNEQUIN_RGB
-timed(f"projection ({painted.mean() * 100:.0f}% of surface painted)", t0)
-
-tex = np.tile(MANNEQUIN_RGB, (TEX, TEX, 1))
-tex[covered] = color
-tex = tex.clip(0, 255).astype(np.uint8)
-# bleed colours past UV island edges so mip-mapping doesn't pull in background
-dil = tex.copy()
-mask = covered.copy()
-for _ in range(8):
-    grown = cv2.dilate(dil, np.ones((3, 3), np.uint8))
-    new = cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool) & ~mask
-    dil[new] = grown[new]
-    mask |= new
-tex_img = Image.fromarray(dil)
-
-material = trimesh.visual.material.PBRMaterial(baseColorTexture=tex_img, metallicFactor=0.0, roughnessFactor=0.8)
-mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=material)
 out = Path(args.out) if args.out else ROOT / "outputs" / "mannequin_test" / f"{Path(args.front).stem}_mannequin.glb"
 out.parent.mkdir(parents=True, exist_ok=True)
-mesh.export(out)
-tex_img.save(out.with_suffix(".png"))
+export_mesh(mesh, out)
+tex = getattr(getattr(mesh.visual, "material", None), "baseColorTexture", None)
+if tex is not None:
+    tex.save(out.with_suffix(".png"))
+dbg = ROOT / "outputs" / "mannequin_test"
+dbg.mkdir(parents=True, exist_ok=True)
+for side, v in views.items():
+    for key in ("garment", "bag", "occlusion"):
+        if key not in v:
+            continue
+        Image.fromarray((v[key].astype(np.uint8) * 255)).save(dbg / f"{out.stem}_{side}_{key}.png")
 print(f"wrote {out}")

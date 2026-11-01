@@ -1,0 +1,6 @@
+[submodule "third_party/cloth2tex"]
+	path = third_party/cloth2tex
+	url = https://github.com/tomguluson92/cloth2tex
+[submodule "third_party/Garment3DGen"]
+	path = third_party/Garment3DGen
+	url = https://github.com/nsarafianos/Garment3DGen

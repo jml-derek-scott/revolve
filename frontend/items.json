@@ -1,0 +1,235 @@
+[
+  {
+    "id": "guess",
+    "name": "guess dress",
+    "file": "/outputs/guess/guess_dress_hull.glb",
+    "current": true,
+    "method": "Hull on mannequin",
+    "chips": ["Ghost v2", "Flux Kontext", "Hunyuan3D-2mv", "SDF 4 mm", "Cylindrical bake"],
+    "details": "Newest piece. Catalog shots of the sequin mini were rewritten into empty-dress plates, Hunyuan3D-2mv built the hull from front and back, then that hull was seated 4 mm off the female mannequin and the same plates were cylindrically baked onto it. The dress is its own mesh — not a photo glued onto the body’s hips.",
+    "thumb": "assets/thumbs/6.png",
+    "thumbnail1": "assets/templates/6-front.jpg",
+    "thumbnail2": "assets/templates/6-back.png",
+    "staticimage1": "assets/templates/6-front-full.jpg",
+    "staticimage2": "assets/templates/6-back-full.png",
+    "ideals": [
+      { "side": "front", "src": "/outputs/canonical/guess_dress/dress/front.png", "label": "Ideal front" },
+      { "side": "back", "src": "/outputs/canonical/guess_dress/dress/back.png", "label": "Ideal back" }
+    ],
+    "shell": {
+      "file": "/outputs/shape/guess_dress/dress_raw.glb",
+      "thumb": "/outputs/shape/guess_dress/preview_raw/front.png",
+      "label": "Hunyuan hull"
+    },
+    "spec": {
+      "models": [
+        "Flux Kontext Pro on Replicate (black-forest-labs/flux-kontext-pro)",
+        "Hunyuan3D-2mv on Replicate (tencent/hunyuan3d-2mv), front + back only",
+        "female_base_mesh.glb with a cached SDF",
+        "Local MPS/CPU: align_ghost_to_mannequin, push_clearance 4 mm, cylindrical bake_photos"
+      ],
+      "steps": [
+        {
+          "title": "2D plates (Ghost v2)",
+          "body": "The sequins are opaque, but a SegFormer cut would still chew highlights and the hip hand. Flux Kontext rewrote the Guess catalog front and back into empty product shots on white. Those accepted plates live at outputs/canonical/guess_dress/dress/. No sheer-fill. No Ghost v1 mask."
+        },
+        {
+          "title": "Shape",
+          "body": "Hunyuan3D-2mv on Replicate saw only those two plates (remove_background on, ~80k faces). The result is outputs/shape/guess_dress/dress_raw.glb — straps, satin bandeau, sequin mini, a strap loop over the neck, bow tails on the back. Click the shell tile below to load that hull in this viewer."
+        },
+        {
+          "title": "Fit, do not replace",
+          "body": "The earlier guess_dress.glb ran fitted_shell: it cut a band of the mannequin and threw the Hunyuan dress away, so the viewer showed shredded sequins on hips. This file keeps the hull. align_ghost_to_mannequin places it from the plate height, push_clearance walks vertices 4 mm outside the double-skin mannequin using the SDF (never mesh.contains)."
+        },
+        {
+          "title": "Texture",
+          "body": "bake_photos with cylindrical unwrap projects front.png and back.png onto that mesh. Facing photos win; grazing flanks copy the nearest sequin on the UV island. No left/right plate was generated. export_hybrid writes mannequin + garment to outputs/guess/guess_dress_hull.glb."
+        }
+      ]
+    }
+  },
+  {
+    "id": "leopard",
+    "name": "leopard dress",
+    "file": "/outputs/canonical/1/dress-fitted.glb",
+    "current": true,
+    "method": "Side fill",
+    "chips": ["Ghost v2", "Flux Kontext", "Hunyuan3D-2mv", "Side fill", "Cylindrical 4-view"],
+    "details": "Sheer leopard lace over a mini slip. SegFormer labels the print as skin, so the person was rewritten out with Flux Kontext instead of being masked. Hunyuan3D-2mv built the empty slip from the ideal front and back. What you see is the later cylindrical side-fill bake: the same hull, with left and right profiles painting the flanks that a planar wrap left empty.",
+    "thumb": "assets/thumbs/1.png",
+    "thumbnail1": "assets/templates/1-front.jpg",
+    "thumbnail2": "assets/templates/1-back.jpg",
+    "staticimage1": "assets/templates/1-front-full.jpg",
+    "staticimage2": "assets/templates/1-back-full.jpg",
+    "ideals": [
+      { "side": "front", "src": "/outputs/canonical/1/dress/front.png", "label": "Ideal front" },
+      { "side": "back", "src": "/outputs/canonical/1/dress/back.png", "label": "Ideal back" },
+      { "side": "left", "src": "/outputs/canonical/1/dress/left.png", "label": "Ideal left" },
+      { "side": "right", "src": "/outputs/canonical/1/dress/right.png", "label": "Ideal right" }
+    ],
+    "shell": {
+      "file": "/outputs/canonical/1/dress-shell.glb",
+      "thumb": "/outputs/canonical/1/shell-front.png",
+      "label": "Hunyuan shell"
+    },
+    "spec": {
+      "models": [
+        "Flux Kontext Pro on Replicate — empty-dress rewrite (Ghost v2)",
+        "Hunyuan3D-2mv on Replicate — shape from ideal front + back",
+        "Microsoft TRELLIS.2 (full-person build, not this file)",
+        "Local cylindrical bake_photos of all four Sim2 views"
+      ],
+      "steps": [
+        {
+          "title": "Why not a mask",
+          "body": "Ghost v1 (the satin-slip path) deletes this print: SegFormer B2 clothes calls leopard mesh “skin”. Flux Kontext rewrites the catalog into a picture of only the slip. Front from the catalog front, back from the catalog back, left and right as 90° turns of the accepted front. Sides are texture only."
+        },
+        {
+          "title": "Progression on this piece",
+          "body": "Texture wrap painted those ideals onto the stock mannequin (no dress geometry). TRELLIS.2 built a whole person from the front photo. Hybrid (1-hybrid.glb) fitted the Hunyuan shell with a planar 4-view bake — flanks went grey. Side fill, this file, is the same shell with a cylindrical atlas so the left and right photos actually land. That is the current version."
+        },
+        {
+          "title": "Shape and fit",
+          "body": "Hunyuan saw only front.png and back.png. The hull is outputs/canonical/1/dress-shell.glb. It is scaled onto female_base_mesh.glb, lifted so the lace covers the bust, and pushed 4 mm off the skin with the SDF. Click the shell tile to inspect the unfitted hull."
+        }
+      ]
+    }
+  },
+  {
+    "id": "open-leg",
+    "name": "Open Leg",
+    "file": "/outputs/canonical/2/dress-fitted.glb",
+    "current": false,
+    "method": "Hybrid",
+    "chips": ["Ghost v2", "Flux Kontext", "Sheer-fill", "Hunyuan3D-2mv", "Cylindrical 4-view"],
+    "details": "Black sheer midi with a high left-leg slit that is real geometry, not a painted cut. Flux Kontext wrote empty-dress plates (the catalog back kept a body in the skirt, so the accepted back is a turn of the empty front). Enclosed sheer was filled dark so Hunyuan would not tunnel through the midriff. The Hunyuan shell was SDF-fitted and cylindrically baked from all four views.",
+    "thumb": "assets/thumbs/2.png",
+    "thumbnail1": "assets/templates/2-front.jpg",
+    "thumbnail2": "assets/templates/2-back.jpg",
+    "staticimage1": "assets/templates/2-front-full.jpg",
+    "staticimage2": "assets/templates/2-back-full.jpg",
+    "ideals": [
+      { "side": "front", "src": "/outputs/canonical/2/dress/front.png", "label": "Ideal front" },
+      { "side": "back", "src": "/outputs/canonical/2/dress/back.png", "label": "Ideal back" },
+      { "side": "left", "src": "/outputs/canonical/2/dress/left.png", "label": "Ideal left" },
+      { "side": "right", "src": "/outputs/canonical/2/dress/right.png", "label": "Ideal right" }
+    ],
+    "shell": {
+      "file": "/outputs/canonical/2/dress-shell.glb",
+      "thumb": "/outputs/canonical/2/dress/hunyuan-front.png",
+      "label": "Hunyuan shell"
+    },
+    "spec": {
+      "models": [
+        "Flux Kontext Pro on Replicate — empty midi, then left/right turns",
+        "Sheer-fill prepass RGB (24, 24, 24) on enclosed hollows only",
+        "Hunyuan3D-2mv on Replicate — front + back vision plates",
+        "Local SDF fit + cylindrical 4-view bake"
+      ],
+      "steps": [
+        {
+          "title": "Ideal photos",
+          "body": "This garment is three layers plus two 1-pixel straps on white. A mask-based ghost cut is the wrong first step. Flux Kontext writes a solid-black empty midi. The catalog-back edit left legs inside the sheer skirt, so the accepted back is a Kontext turn of the accepted empty front. Left and right are further turns of that front."
+        },
+        {
+          "title": "Sheer-fill, then Hunyuan",
+          "body": "Reconstructors treat white seen through cloth as holes and tunnel the midriff. Copies hunyuan-front.png / hunyuan-back.png fill enclosed sheer with dark gray (24,24,24). The slit and the gap between straps stay open. Hunyuan3D-2mv gets those two plates only. The hull used for this hybrid is outputs/canonical/2/dress-shell.glb."
+        },
+        {
+          "title": "Hybrid (current)",
+          "body": "Older wrap, TRELLIS, and planar hybrid files for this template were deleted. The Hybrid button loads this SDF-fitted cylindrical bake: dress-fitted.glb. The high slit is in the mesh. Click the shell tile for the unfitted Hunyuan hull (vertex-colored, not yet on the mannequin)."
+        }
+      ]
+    }
+  },
+  {
+    "id": "yellow",
+    "name": "Yellow Dress",
+    "file": "assets/models/3-hybrid.glb",
+    "current": false,
+    "method": "Hybrid",
+    "chips": ["Hunyuan3D-2mv", "Hunyuan3D-Paint", "Photo overlay"],
+    "details": "Chartreuse halter with a deep cowl and an open back. Hunyuan3D-2mv reconstructed the whole figure from the catalog front and back so the open back is geometry, not a guessed closed dress. Hunyuan3D-Paint on a Modal A10G filled the side seams, then the real dress photos were laid over the garment. Skin, hair, and the 90° flanks keep the Paint atlas. No mannequin.",
+    "thumb": "assets/thumbs/3.png",
+    "thumbnail1": "assets/templates/3-front.jpg",
+    "thumbnail2": "assets/templates/3-back.jpg",
+    "staticimage1": "assets/templates/3-front-full.jpg",
+    "staticimage2": "assets/templates/3-back-full.jpg",
+    "ideals": [
+      { "side": "front", "src": "assets/templates/3-front-full.jpg", "label": "Catalog front" },
+      { "side": "back", "src": "assets/templates/3-back-full.jpg", "label": "Catalog back" }
+    ],
+    "shell": {
+      "file": "assets/models/3-build.glb",
+      "thumb": "assets/templates/3-front.jpg",
+      "label": "Painted Hunyuan figure"
+    },
+    "spec": {
+      "models": [
+        "Hunyuan3D-2mv on Replicate — shape from catalog front + back",
+        "Hunyuan3D-Paint v2.0 Turbo on Modal A10G (CUDA rasterizer)",
+        "Local photo overlay (run_hybrid_poc --no-extract)"
+      ],
+      "steps": [
+        {
+          "title": "Why both photos",
+          "body": "A front-only reconstructor (TRELLIS.2, InstantMesh) invents a closed back. This template exists to prove the back photo: Hunyuan3D-2mv is conditioned on front and back, so the cowl, neck tie, and open back are in the mesh."
+        },
+        {
+          "title": "Paint, then overlay",
+          "body": "Hunyuan’s 2mv endpoint returns grey geometry. Projecting photos covers ~83% of the surface; the under-arm band stays grey. Hunyuan3D-Paint on Modal fills that. Hybrid then projects catalog dress pixels onto the garment only. Skin and grazing sides keep Paint. That overlay is this file (3-hybrid.glb)."
+        },
+        {
+          "title": "Progression",
+          "body": "Texture wrap is paint on the stock mannequin — no cowl, no open back. Full build is the painted Hunyuan figure. Hybrid, current, is that figure plus sharp catalog dress pixels. Click the shell tile to load the painted figure without the photo overlay."
+        }
+      ]
+    }
+  },
+  {
+    "id": "satin",
+    "name": "satin slip",
+    "file": "assets/models/4-hybrid.glb",
+    "current": false,
+    "method": "Ghost + mannequin",
+    "chips": ["Ghost v1", "SegFormer", "LaMa", "Hunyuan3D-2mv"],
+    "details": "Opaque lace-trim satin, so the dress can be cut in 2D first. rembg + SegFormer + strap recovery + LaMa on the bag and hair produce a floating slip on white. Hunyuan3D-2mv reconstructs only that dress. Ghost + Mannequin then scales it onto the white body and pulls the back past the seat so the skin does not poke through.",
+    "thumb": "assets/thumbs/4.png",
+    "thumbnail1": "assets/templates/4-front.jpg",
+    "thumbnail2": "assets/templates/4-back.jpg",
+    "staticimage1": "assets/templates/4-front-full.jpg",
+    "staticimage2": "assets/templates/4-back-full.jpg",
+    "ideals": [
+      { "side": "front", "src": "assets/templates/4-front-ghost.png", "label": "Ghost front" },
+      { "side": "back", "src": "assets/templates/4-back-ghost.png", "label": "Ghost back" }
+    ],
+    "shell": {
+      "file": "assets/models/4-build.glb",
+      "thumb": "assets/templates/4-front-ghost.png",
+      "label": "Ghost dress"
+    },
+    "spec": {
+      "models": [
+        "rembg (u2net) + SegFormer B2 clothes (mattmdjaga/segformer_b2_clothes)",
+        "u2net_cloth_seg for spaghetti straps",
+        "LaMa on Replicate (allenhooo/lama) for bag/hair occlusions",
+        "Hunyuan3D-2mv on Replicate from the white-background cutouts",
+        "fit_ghost_garment onto female_base_mesh.glb"
+      ],
+      "steps": [
+        {
+          "title": "Ghost v1 isolation",
+          "body": "Feeding the catalog person to Hunyuan builds a person. Carving that person in 3D punches holes in straps and lace. Here the cut is 2D: rembg, SegFormer dress vs hair/face/limbs/bag, CIE LAB skin-fringe strip, LaMa on occlusions, 2 px erosion, composite on #FFFFFF. Those plates are the ghost thumbs below."
+        },
+        {
+          "title": "Ghost build",
+          "body": "Hunyuan3D-2mv reconstructs only the hollow dress from the two ghost cutouts. The cutouts are UV-baked onto that mesh. That standalone dress is 4-build.glb — click the shell tile to load it without the mannequin."
+        },
+        {
+          "title": "Ghost + Mannequin (current)",
+          "body": "fit_ghost_garment scales the dress from the 2D garment-to-person height, then pulls the back 4 mm past the seat and shoulder blades so the double-skin mannequin does not show through. Texture wrap on this template is the old baseline (photos on the stock body) and is not what the shop shows."
+        }
+      ]
+    }
+  }
+]

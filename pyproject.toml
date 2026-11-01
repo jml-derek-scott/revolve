@@ -1,0 +1,51 @@
+[tool.poetry]
+name = "3dviewer"
+version = "0.1.0"
+description = "Image → 3D mesh (GLB) generator with a static web viewer"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+fastapi = ">=0.110.0"
+uvicorn = {extras = ["standard"], version = ">=0.28.0"}
+python-multipart = ">=0.0.9"
+pydantic = ">=2.6.0"
+# Intel Mac PyPI wheels stop at 2.2.x (this machine is x86_64).
+torch = ">=2.2.0,<2.3"
+torchvision = ">=0.17.0,<0.18"
+numpy = "<2.0.0"
+trimesh = ">=4.0.0"
+scipy = ">=1.12.0"
+pillow = ">=10.2.0"
+# TripoSR pins — keep exact. torchmcubes is built in `make install` (needs --no-build-isolation).
+# TripoSR itself is cloned to vendor/TripoSR (not a pip package).
+omegaconf = "2.3.0"
+einops = "0.7.0"
+transformers = "4.35.0"
+huggingface-hub = "*"
+scikit-image = "*"
+imageio = "*"
+rembg = "*"
+# 1.24+ dropped macosx_x86_64 wheels; 1.23.2 is what the old venv had.
+onnxruntime = ">=1.16,<1.24"
+opencv-python-headless = "*"
+# rembg → numba → llvmlite; keep below the numpy 2 / numba 0.60 break
+llvmlite = "<0.43"
+numba = "<0.60"
+modal = "^1.6.2"
+python-dotenv = "*"
+replicate = "*"
+xatlas = "*"
+pyyaml = "^6.0.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.2.0,<10.0.0)"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

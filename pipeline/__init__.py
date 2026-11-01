@@ -1,0 +1,1 @@
+"""Local hybrid PoC stages: preprocess → reconstruct → extract → bake → export."""

@@ -1,63 +1,0 @@
-Implementation Plan: Local 3D Mesh Generation & Web Viewer Pipeline
-This plan outlines the end-to-end architecture and implementation steps to run a lightweight, local 3D reconstruction backend on a Mac Pro equipped with an AMD GPU, paired with a web frontend utilizing Three.js and Google's <model-viewer> for interactive 3D model visualization and dynamic lighting environments.
-1. Hardware Architecture & Mac Pro (AMD GPU) Setup
-Because AMD GPUs on macOS do not natively support NVIDIA CUDA, traditional PyTorch CUDA binaries cannot be used directly. Instead, modern Mac hardware and macOS leverage Apple Metal via PyTorch's MPS (Metal Performance Shaders) backend, or DirectML/ROCm implementations depending on the OS context.
-Environment Configuration
-	•	OS: macOS with Metal framework support.
-	•	PyTorch MPS Acceleration: Standard PyTorch builds on macOS direct tensor computations to the GPU via torch.device("mps").
-	•	Model Choice for Metal Compatibility: TripoSR and SF3D (Stable Fast 3D) are the most lightweight and easily adaptable to MPS execution without heavy CUDA-kernel dependencies like Instant-NGP or custom CUDA rasterizers.
-# Python setup for PyTorch with Metal MPS support import torch  if torch.backends.mps.is_available():     device = torch.device("mps")     print("Metal MPS backend active.") else:     device = torch.device("cpu")     print("MPS not available, defaulting to CPU.") 
-2. 3D Generation Model Strategy (Single & Multi-View Input)
-To support both Single-Image (Front only) and Dual-Image (Front + Back) input scenarios, a modular pipeline is required.
-Scenario
-Processing Pipeline
-Primary Model / Strategy
- 
-Scenario 1: Front Only
-Front PNG → Single-Image 3D Reconstruction → Textured GLB Mesh
-TripoSR / SF3D (Direct single-pass mesh prediction)
-Scenario 2: Front + Back
-Front & Back PNGs → Multi-View Diffusion Alignment → Mesh Reconstruction
-Unique3D / Zero123++ (Conditioning backend with dual camera angles prior to mesh extraction)
-Model References & Links
-	•	TripoSR Repository (Hugging Face) - Lightweight, fast single-image 3D reconstruction.
-	•	Stable Fast 3D / SF3D (Hugging Face) - Fast mesh generation with low memory footprint.
-	•	Unique3D Space (Hugging Face) - High-fidelity multi-view reconstruction for front and back alignment.
-3. Web Frontend Architecture & Viewer Comparison
-To serve the generated .glb assets with interactive rotation, lighting, and environment options (e.g., indoor nightclub vs. outdoor beach), two main web visualization technologies will be evaluated.
-Viewer Comparison
-Feature
-Google <model-viewer>
-Custom Three.js Pipeline
- 
-Setup Complexity
-Low (Custom HTML Web Component)
-Medium-High (JS Canvas & Scene setup)
-File Size / Footprint
-~200 KB loaded via CDN
-~600 KB (Can be tree-shaken & stripped)
-Lighting & HDR Environments
-Supported via skybox-image and environment-image attributes
-Full custom control via RGBELoader, custom lights, bloom, and shaders
-Performance & Stripping
-All-in-one bundle, limited custom customization
-Highly optimization-friendly; engine can be stripped to essential mesh/texture rendering
-Environment Lighting Options
-Custom High Dynamic Range (HDR) environment maps will be used to switch lighting moods dynamically in the browser:
-	•	Indoor Nightclub: Low ambient lighting, high contrast point lights (neon red/blue), directional spotlights.
-	•	Outdoor Beach: High ambient intensity, warm directional sun light (color temperature ~5500K), HDR skybox background.
-Viewer References & Links
-	•	Google <model-viewer> Documentation
-	•	Three.js Official Library & Docs
-	•	Poly Haven HDR Environments - Open-source HDRIs for beach and indoor lighting tests.
-4. Step-by-Step Implementation Roadmap
-	•	Phase 1: Backend Setup on Mac Pro
-	•	Install PyTorch with MPS support in a dedicated Virtual Environment (Python 3.10+).
-	•	Clone and verify TripoSR / SF3D locally. Test execution using CPU/MPS acceleration on sample PNGs.
-	•	Expose a REST API or WebSocket endpoint using FastAPI to handle file uploads and return generated .glb files.
-	•	Phase 2: Multi-View Handling Logic
-	•	Implement detection logic in FastAPI: If 1 image uploaded → route to TripoSR single-image pipeline. If 2 images (front + back) uploaded → route to multi-view alignment pipeline (e.g., Unique3D).
-	•	Phase 3: Frontend Development & Evaluation
-	•	Build a minimal web frontend containing both <model-viewer> and a custom stripped Three.js implementation.
-	•	Add UI controls for environment lighting toggles (Nightclub vs. Beach HDRIs).
-	•	Benchmark load times, render performance (FPS), memory overhead, and bundle sizes between the two viewer approaches.

@@ -33,3 +33,6 @@ uploads/
 .DS_Store
 
 scraper/revolve_images
+
+history/papers/*.pdf
+3D_PLAN/

@@ -6,10 +6,11 @@ Image → 3D mesh (GLB) generator with a static web viewer. Not a git repo; part
 
 ## Setup and running
 
-- Use the existing `venv/` (`source venv/bin/activate`). There is no test suite or linter configured.
-- Install: `pip install -c backend/constraints.txt -r backend/requirements.txt`. `torchmcubes` must be built against the installed torch first, and TripoSR is cloned into `vendor/TripoSR` (not pip-installable) — the build steps are in comments in `backend/requirements.txt`.
-- Run the server from the repo root: `uvicorn backend.app.main:app --reload` (the package is imported as `backend.app`; relative imports are used throughout). It serves the frontend at `/`, the API under `/api`, and generated GLBs at `/outputs/<job_id>.glb`.
-- `python scripts/verify_mps.py` checks that MPS is usable. `python scripts/test_triposr.py <image> [mps|cpu]` is a standalone TripoSR smoke test, independent of the backend.
+- Poetry owns the main env (`.venv/`, in-project). InstantMesh stays on `venv-instantmesh/`. There is no test suite or linter configured.
+- Install: `make install` (needs Poetry + Python 3.11). `torchmcubes` is built against the installed torch as a post-step (`--no-build-isolation`). TripoSR is cloned into `vendor/TripoSR` (not pip-installable).
+- Run the server from the repo root: `./run.sh` or `make run` (or `poetry run uvicorn backend.app.main:app --reload`; the package is imported as `backend.app`, and relative imports are used throughout). It serves the frontend at `/`, the API under `/api`, and generated GLBs at `/outputs/<job_id>.glb`.
+- `poetry run python scripts/verify_mps.py` checks that MPS is usable. `poetry run python scripts/test_triposr.py <image> [mps|cpu]` is a standalone TripoSR smoke test, independent of the backend.
+- Modal (cloud GPUs): `make modal-setup` (or `poetry run python -m modal setup`). Then `make modal-secret` to create `huggingface-secret` from `HF_TOKEN` in `.env`, `make modal-deploy` / `make modal-prefetch` for Hunyuan3D-2mv. Package is declared in `pyproject.toml`; do not `pip install modal`. Hybrid PoC CLI: `poetry run python scripts/run_hybrid_poc.py --front … --back … --provider replicate|modal|hf|skip`.
 - `scraper/` holds Playwright scripts that download product images (e.g. Revolve) into `scraper/revolve_images/`; they are one-off scripts with hardcoded URLs.
 
 ## Architecture

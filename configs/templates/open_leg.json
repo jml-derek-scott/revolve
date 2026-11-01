@@ -1,0 +1,18 @@
+{
+  "outfit_id": "2",
+  "gender": "female",
+  "target_mannequin": "mannequins/female_base_mesh.glb",
+  "garments": [
+    {
+      "class_id": "dress",
+      "category": "dress",
+      "layer_order": 1,
+      "material_type": "sheer",
+      "prepass_mode": "ghost_v2",
+      "sdf_clearance_mm": 4.0,
+      "lift_m": 0.10,
+      "unwrap_mode": "cylindrical",
+      "background_max": 100
+    }
+  ]
+}

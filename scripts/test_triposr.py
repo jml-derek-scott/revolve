@@ -1,4 +1,4 @@
-"""Standalone TripoSR smoke test: python scripts/test_triposr.py <image> [mps|cpu]"""
+"""Standalone TripoSR smoke test: poetry run python scripts/test_triposr.py <image> [mps|cpu]"""
 import os
 import sys
 import time

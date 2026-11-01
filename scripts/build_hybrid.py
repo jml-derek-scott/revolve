@@ -1,6 +1,6 @@
 """Hybrid prototype: garment shape + texture from a full-build mesh, body from the premade mannequin.
 
-    venv/bin/python scripts/build_hybrid.py <full_build.glb> <front.jpg> <back.jpg> [--out out.glb]
+    poetry run python scripts/build_hybrid.py <full_build.glb> <front.jpg> <back.jpg> [--out out.glb]
 
 1. Project the photos' clothing-segmentation masks onto the full-build mesh (it was generated from the
    front photo, so they line up) and keep only garment faces.

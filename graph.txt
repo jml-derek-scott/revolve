@@ -1,0 +1,4 @@
+┌─────────────────────────────────┐      ┌─────────────────────────────────────┐      ┌─────────────────────────────────┐
+│ 1. Garment Geometry Generation  │      │ 2. SDF Collision Fitting Pass       │      │ 3. Diffusion Side-Seam Inpaint  │
+│ (Isolated 2D Views -> 3D Shell) │ ───► │ (ReFU / Penetration-Free Alignment) │  ──► │ (Depth/Normal-Aware Texturing)  │
+└─────────────────────────────────┘      └─────────────────────────────────────┘      └─────────────────────────────────┘

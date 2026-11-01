@@ -1,0 +1,43 @@
+Stage A did not fail. The four Sim2 images are a good empty-dress product shot. Stage B failed on shape: Hunyuan3D-2mv was given a hollow, layered, sheer garment on pure white, and the mesh it returned is not that dress. Fit and bake then did their jobs on a bad shell, which is why the clearance numbers look fine and the model still looks wrong.
+
+What actually broke
+The dress is three layers plus two 1-pixel straps: opaque bandeau, sheer midriff, short opaque slip, sheer midi overlay with a high slit. Hunyuan was asked for one watertight 80k shell (remove_background: true) from the Sim2 front and back. That shell is closed (0 boundary edges) but topologically a sponge (Euler −26, lots of tunnels). After fit it sits at midi height (y 0.28–1.46 m) with SDF energy 6.8e-11. So placement and collision passed. The garment is still not the product.
+
+What you see	What failed	Not this
+White rectangle on the chest
+Hunyuan treated the sheer midriff (white showing through) as background and tunneled through the volume. You are looking at the mannequin.
+UV unwrap / TELEA
+No spaghetti straps
+Thin black lines on white do not survive rembg + a ~384³ occupancy grid. Only 433 verts exist above the bandeau.
+The fitter cutting them
+Hip / seat blob in profile
+Two-view Hunyuan invented volume for “a solid object.” This construction is layers of cloth, not a capsule.
+SDF over-push (energy is ~0)
+Strapless tube, not a bandeau + overlay
+One closed mesh cannot be three garments. Layers got fused into a lumpy shell.
+Wrong mannequin / wrong lift
+Side texture smear
+Planar bake onto that lumpy flank. 99% of faces got a photo; the photos are being projected onto the wrong surface.
+Missing left/right images
+The Sim2 front is the smoking gun: large regions of the “garment” are literally #FFFFFF (sheer + hollow interior). The Replicate call then deletes background. Sheer is background to that model. That is an input contract failure, not a random Hunyuan glitch.
+
+Where we did not fail
+Catalog → Flux Kontext → four accepted views. Gate worked.
+Front and back only into Hunyuan. Left/right stayed texture.
+--shell fitted was not used, on purpose: a mannequin-skin tube would lose the slit and the overlay.
+--lift 0 (the 10 cm T1 mini hack was not applied). Hem length is in the right band.
+Two nodes, mannequin + garment. Demo 2-hybrid.glb was not written.
+T1’s look-check failure was the opposite path: fitted open shell, body-conforming, not the slip. T2’s failure is Hunyuan-as-garment on a sheer layered midi. Neither current Stage B shape option matches this product.
+
+What is worth researching
+Sheer-on-white vs Hunyuan. Grey underlay, no remove_background, or a filled “ghost body” that is not a person. Anything that stops white fabric reading as empty. Until that is solved, this dress will keep coming back with chest holes.
+
+Whether Hunyuan is the wrong shape tool here. It wants a single opaque object. This product is layered cloth + hairline straps + a slit. A garment reconstructor, a pattern/drape path, or separate shells (bandeau, slip, overlay) are the live alternatives. One 80k watertight mesh is probably a dead end for this SKU.
+
+Straps as geometry vs straps as a later strip. Do not expect Hunyuan to emit 2 mm tubes. If straps matter, they are a post step (curves, two quads, or a dedicated mask).
+
+Do not spend the next cycle on SDF, TELEA, or ControlNet flanks. Collision already cleared. Bake already painted almost everything. The mesh is the problem; better side inpaint will not grow straps or close a midriff tunnel.
+
+Decision you still owe the pipeline: for a midi with its own slit, is the garment allowed to be “mannequin + projected photos” (T1 fitted-shell, no real overlay), or must overlay/slit be real geometry? Right now we have no third option, and both existing ones fail this dress in different ways.
+
+Files to look at while you think: Sim2 front outputs/canonical/2/dress/front.png, raw shell outputs/canonical/2/dress-shell.glb, fitted preview outputs/canonical/2/dress-fitted.glb (template 2 → Hybrid). The reconstructor call is pipeline/reconstruct.py via_replicate (remove_background: True, octree_resolution: 384).

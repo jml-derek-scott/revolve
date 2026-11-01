@@ -1,0 +1,64 @@
+The five specific issues causing this result, along with the required fixes, are:1. The "Postage Stamp" Texture on the ChestWhat happened: In fit_garment(), the garment mesh was scaled and translated to match the mannequin's world space. However, inside bake_photos(), the projection math calculated scale and origin using garment.bounds (the isolated dress, ~0.6 m high) instead of the full person height from the original photo (mhi[1] - mlo[1], ~1.75 m).The result: The entire 1.75 m photo was mapped into the 0.6 m vertical space of the dress. Bust cups, waist, and thighs were all squashed into a tiny centered square on the chest.2. The Sea of Pitch-Black FabricWhat happened:The UV texture buffer is initialized to black (np.zeros((H, W, 3), dtype=np.uint8)).Because the photo projection was compressed into that tiny chest box, every other texel (shoulders, sides, skirt) fell completely outside the 2D garment mask (v["garment"]).Strict normal angle gating ($\vert{}n_z\vert{} \ge 0.25$) and z-buffer tolerance ($\vert{}P_z - z_{\text{buf}}\vert{} < 1.5\text{ cm}$) rejected texels shifted outward by the push pass.cv2.inpaint(..., inpaintRadius=9) is designed to heal a 5-to-10-pixel seam line. It cannot paint over a massive black void covering 80% of the mesh.3. The Shredded, "Swiss Cheese" SkirtWhat happened: In garment_extractor.py, faces are extracted by projecting 3D triangle centers onto the 2D clothing mask v["garment"] (from u2net_cloth_seg). Because the 3D mesh was offset or mis-scaled relative to the photo coordinates, the bottom triangles landed on the model's bare legs or the white background.The result: Most skirt triangles evaluated to False and were deleted, leaving only a few ragged clusters of faces behind.4. The Floating Black Lump on the Right HipWhat happened: In Template 1, the model is holding a black handbag/clutch near her right hip.The 3D reconstructor generated geometry for the bag.u2net_cloth_seg either included part of the accessory, or the 12-ring morphological dilation (CLOSE_STEPS = 12) swallowed it into the dress selection.The bag mesh had more than 300 faces, so the component filter (sizes[labels] >= MIN_COMPONENT_FACES) kept it intact.5. Mannequin Pelvis ClippingWhat happened: The current push logic checks whether vertices sit between front_z and back_z of the mannequin torso, pushing them outward to fz + 4mm. For flared skirts that should stand off the body, this logic flattens the geometry directly onto the mannequin's pelvis and thighs. Combined with the missing faces, the mannequin's legs punch straight through.How to Fix ItFix 1: Correct the Projection World Coordinates (pipeline/texture_bake.py)Ensure UV raycasting uses the mannequin's coordinate frame (or the full reconstructed person's bounding box), not the cut garment's local box:
+
+```
+# In pipeline/texture_bake.py
+def project_vertex_to_photo(p_world, view, mannequin_bounds):
+    mlo, mhi = mannequin_bounds
+    full_height = mhi[1] - mlo[1]
+    
+    # Scale based on the FULL person height in the photo
+    scale = (view["bottom"] - view["top"]) / full_height
+    
+    # Map relative to floor and torso center
+    px = view["cx"] + (p_world[0] - (mlo[0] + mhi[0]) / 2) * scale
+    py = view["bottom"] - (p_world[1] - mlo[1]) * scale
+    return int(round(px)), int(round(py))
+	
+```
+
+Fix 2: Keep the Original AI Texture as Fallback (pipeline/texture_bake.py)
+Do not initialize the UV texture map to pure black zeros. Initialize it with the reconstruction's baked texture map (from the TRELLIS/Replicate build), and only overwrite texels where the sharp photo projection is valid:
+
+```
+# Initialize with the AI model's texture instead of pure black
+if initial_texture is not None:
+    out_rgb = np.array(initial_texture.convert("RGB"))
+else:
+    # Use neutral fabric tone rather than pitch black [0, 0, 0]
+    out_rgb = np.full((tex_h, tex_w, 3), 220, dtype=np.uint8)
+
+# Project high-res photo pixels over valid facing regions
+out_rgb[front_valid] = front_img[py[front_valid], px[front_valid]]
+out_rgb[back_valid]  = back_img[py[back_valid], px[back_valid]]
+```
+
+Fix 3: Prune the Handbag & Detached Geometry (pipeline/garment_extractor.py)Instead of keeping all components with $> 300$ faces, keep only the single largest connected component (the dress), or filter by $X$-axis distance from the torso center line:
+
+```
+# In pipeline/garment_extractor.py
+labels = trimesh.graph.connected_component_labels(welded.face_adjacency, node_count=len(welded.faces))
+sizes = np.bincount(labels)
+
+# Option A: Keep only the single primary garment body
+largest_component = np.argmax(sizes)
+garment.update_faces(labels == largest_component)
+
+# Option B: Filter out accessories that sit too far laterally off the hips (e.g. bags on the side)
+# centers = garment.triangles_center
+# keep_faces = (labels == largest_component) & (np.abs(centers[:, 0]) < 0.35)
+```
+
+Fix 4: Restrict the Mannequin Depth Push to the Upper Torso (pipeline/garment_extractor.py)Do not push skirt vertices against the pelvis depth map. Only apply penetration fixes to vertices above the hip line ($y > 1.05\text{ m}$ on the standard mannequin):
+
+```
+# Only push tight torso/chest vertices, let the skirt hang freely
+torso_zone = V[:, 1] > 1.05  # Hip height cutoff
+inside_torso = inside & torso_zone
+
+V[inside_torso & to_front, 2] = fz[inside_torso & to_front] + CLEARANCE
+V[inside_torso & to_back, 2]  = bz[inside_torso & to_back] - CLEARANCE
+garment.vertices = V
+```
+
+Once the projection coordinate space is mapped to the mannequin's full height, the leopard print will cover the actual bust and waist, the skirt will remain continuous, and the black voids will be resolved.	
+	
